@@ -489,13 +489,7 @@ function saveNbs() { localStorage.setItem('nb_books', JSON.stringify(notebooks))
 function saveNts() { localStorage.setItem('nb_notes', JSON.stringify(notes)); }
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
 
-if (notebooks.length === 0) {
-  notebooks = [
-    { id: uid(), name: '일상', icon: '📔' },
-    { id: uid(), name: '책 구절', icon: '📚' },
-  ];
-  saveNbs();
-}
+
 
 // ── 렌더 ──
 function renderNbs() {
@@ -843,7 +837,8 @@ function showToast(msg) {
 }
 
 window.addEventListener('beforeunload', flushSave);
-selectNb(notebooks[0].id);
+if (notebooks.length > 0) selectNb(notebooks[0].id);
+else { renderNbs(); renderNoteList(); renderEditor(); }
 </script>
 </body>
 </html>
