@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="내 노트">
-<meta name="theme-color" content="#1a1a2e">
+<meta name="theme-color" content="#1e1e2e">
 <link rel="manifest" href="./manifest.json">
 <title>내 노트</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Noto+Serif+KR:wght@400;600&display=swap" rel="stylesheet">
@@ -29,7 +29,6 @@
   --danger: #f38ba8;
 }
 
-* { box-sizing: border-box; }
 body {
   font-family: 'Noto Sans KR', sans-serif;
   background: var(--bg);
@@ -55,19 +54,12 @@ body {
 .sidebar-header { padding: 20px 16px 12px; border-bottom: 1px solid #313244; }
 .app-title {
   font-family: 'Noto Serif KR', serif;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--accent);
-  letter-spacing: 0.05em;
-  margin-bottom: 14px;
+  font-size: 16px; font-weight: 600;
+  color: var(--accent); letter-spacing: 0.05em; margin-bottom: 14px;
 }
 .search-box {
-  display: flex;
-  align-items: center;
-  background: #313244;
-  border-radius: 8px;
-  padding: 7px 10px;
-  gap: 7px;
+  display: flex; align-items: center;
+  background: #313244; border-radius: 8px; padding: 7px 10px; gap: 7px;
 }
 .search-box input {
   background: none; border: none; outline: none;
@@ -82,6 +74,7 @@ body {
   color: var(--sidebar-muted); text-transform: uppercase;
 }
 .notebook-list { flex: 1; overflow-y: auto; padding-bottom: 8px; }
+
 .notebook-item {
   display: flex; align-items: center; justify-content: space-between;
   padding: 9px 16px; cursor: pointer;
@@ -90,7 +83,7 @@ body {
 }
 .notebook-item:hover { background: var(--sidebar-hover); }
 .notebook-item.active { background: var(--sidebar-active); color: #fff; }
-.notebook-item-left { display: flex; align-items: center; gap: 8px; overflow: hidden; }
+.notebook-item-left { display: flex; align-items: center; gap: 8px; overflow: hidden; flex: 1; }
 .notebook-icon { font-size: 14px; flex-shrink: 0; }
 .notebook-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .notebook-count {
@@ -98,9 +91,20 @@ body {
   background: #313244; padding: 1px 6px; border-radius: 10px; flex-shrink: 0;
 }
 .notebook-item.active .notebook-count { background: #45475a; color: #bac2de; }
+
+/* 노트북 액션 버튼 */
+.nb-actions { display: none; gap: 2px; flex-shrink: 0; }
+.notebook-item:hover .nb-actions { display: flex; }
+.nb-actions button {
+  background: none; border: none; cursor: pointer;
+  font-size: 13px; padding: 3px 5px; border-radius: 4px;
+  opacity: 0.5; transition: opacity 0.15s, background 0.15s;
+  line-height: 1;
+}
+.nb-actions button:hover { opacity: 1; background: rgba(255,255,255,0.12); }
+
 .add-notebook-btn {
-  margin: 8px 12px;
-  padding: 9px 12px;
+  margin: 8px 12px; padding: 9px 12px;
   background: none; border: 1px dashed #45475a; border-radius: 8px;
   color: var(--sidebar-muted);
   font-family: 'Noto Sans KR', sans-serif; font-size: 13px;
@@ -208,7 +212,6 @@ body {
     width: 100%; position: absolute; left: 0; top: 0; right: 0; bottom: 0;
     z-index: 10; transition: transform 0.3s ease;
   }
-  .note-list-panel.hidden { transform: translateX(-100%); }
   .editor-panel {
     position: absolute; left: 0; top: 0; right: 0; bottom: 0;
     z-index: 20; transform: translateX(100%); transition: transform 0.3s ease;
@@ -217,14 +220,14 @@ body {
   .mobile-top-bar { display: flex !important; }
   .note-list-header { display: none; }
   .editor-toolbar { display: none; }
+  /* 모바일에선 호버 없으니 항상 버튼 표시 */
+  .nb-actions { display: flex !important; }
+  .nb-actions button { opacity: 0.6; }
 }
 .mobile-top-bar {
-  display: none;
-  align-items: center;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border);
-  gap: 12px; flex-shrink: 0;
-  background: #fff;
+  display: none; align-items: center;
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  gap: 12px; flex-shrink: 0; background: #fff;
 }
 .mobile-back-btn, .mobile-menu-btn {
   background: none; border: none; font-size: 20px;
@@ -258,6 +261,7 @@ body {
 }
 .modal-btn.cancel { background: var(--bg); color: var(--muted); }
 .modal-btn.confirm { background: var(--accent); color: #1e1e2e; font-weight: 500; }
+.modal-btn.danger { background: var(--danger); color: #fff; font-weight: 500; }
 
 /* 토스트 */
 .toast {
@@ -274,14 +278,6 @@ body {
   display: none; position: fixed; inset: 0; z-index: 49; background: rgba(0,0,0,0.3);
 }
 .sidebar-overlay.open { display: block; }
-  .nb-actions { display: none; gap: 2px; }
-.notebook-item:hover .nb-actions { display: flex; }
-.nb-actions button {
-  background: none; border: none; cursor: pointer;
-  font-size: 12px; padding: 2px 4px; border-radius: 4px;
-  opacity: 0.6; transition: opacity 0.15s;
-}
-.nb-actions button:hover { opacity: 1; background: rgba(255,255,255,0.1); }
 </style>
 </head>
 <body>
@@ -299,7 +295,7 @@ body {
     </div>
     <div class="sidebar-section-label">노트북</div>
     <div class="notebook-list" id="notebook-list"></div>
-    <button class="add-notebook-btn" onclick="openAddNotebook()">＋ 새 노트북</button>
+    <button class="add-notebook-btn" onclick="openAddNbModal()">＋ 새 노트북</button>
   </div>
 
   <!-- 노트 목록 -->
@@ -328,13 +324,11 @@ body {
       <span class="editor-save-status" id="save-status">저장됨</span>
       <button class="editor-delete-btn" onclick="deleteCurrentNote()">🗑</button>
     </div>
-
     <div id="editor-inner" style="display:none; flex:1; flex-direction:column; overflow:hidden;">
       <input class="editor-title-input" id="editor-title" type="text" placeholder="제목" oninput="onEdit()">
       <div class="editor-meta" id="editor-meta"></div>
       <textarea class="editor-body" id="editor-body" placeholder="내용을 자유롭게 입력하세요..." oninput="onEdit()"></textarea>
     </div>
-
     <div class="no-note-placeholder" id="no-note-msg">
       <div class="icon">📝</div>
       <p>노트를 선택하거나 새로 만들어보세요</p>
@@ -343,14 +337,39 @@ body {
 </div>
 
 <!-- 노트북 추가 모달 -->
-<div class="modal-overlay" id="modal-overlay">
+<div class="modal-overlay" id="modal-add">
   <div class="modal">
     <h3>새 노트북</h3>
-    <input type="text" id="nb-name-input" placeholder="노트북 이름" maxlength="30"
+    <input type="text" id="nb-add-input" placeholder="노트북 이름" maxlength="30"
       onkeydown="if(event.key==='Enter') confirmAddNb()">
     <div class="modal-btns">
-      <button class="modal-btn cancel" onclick="closeModal()">취소</button>
+      <button class="modal-btn cancel" onclick="closeModal('modal-add')">취소</button>
       <button class="modal-btn confirm" onclick="confirmAddNb()">만들기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 노트북 이름 변경 모달 -->
+<div class="modal-overlay" id="modal-rename">
+  <div class="modal">
+    <h3>이름 변경</h3>
+    <input type="text" id="nb-rename-input" placeholder="새 이름" maxlength="30"
+      onkeydown="if(event.key==='Enter') confirmRenameNb()">
+    <div class="modal-btns">
+      <button class="modal-btn cancel" onclick="closeModal('modal-rename')">취소</button>
+      <button class="modal-btn confirm" onclick="confirmRenameNb()">변경</button>
+    </div>
+  </div>
+</div>
+
+<!-- 노트북 삭제 확인 모달 -->
+<div class="modal-overlay" id="modal-delete">
+  <div class="modal">
+    <h3>노트북 삭제</h3>
+    <p id="modal-delete-msg" style="font-size:14px; color:#666; line-height:1.7; margin-bottom:18px;"></p>
+    <div class="modal-btns">
+      <button class="modal-btn cancel" onclick="closeModal('modal-delete')">취소</button>
+      <button class="modal-btn danger" onclick="confirmDeleteNb()">삭제</button>
     </div>
   </div>
 </div>
@@ -364,12 +383,12 @@ if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').ca
 let notebooks = JSON.parse(localStorage.getItem('nb_books') || '[]');
 let notes = JSON.parse(localStorage.getItem('nb_notes') || '[]');
 let curNbId = null, curNoteId = null, saveTimer = null;
+let pendingRenameId = null, pendingDeleteId = null;
 
 function saveNbs() { localStorage.setItem('nb_books', JSON.stringify(notebooks)); }
 function saveNts() { localStorage.setItem('nb_notes', JSON.stringify(notes)); }
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
 
-// 기본 노트북
 if (notebooks.length === 0) {
   notebooks = [
     { id: uid(), name: '일상', icon: '📔' },
@@ -389,9 +408,9 @@ function renderNbs() {
       </div>
       <span class="notebook-count">${cnt}</span>
       <div class="nb-actions">
-  <button onclick="event.stopPropagation();renameNb('${nb.id}')" title="이름 변경">✏️</button>
-  <button onclick="event.stopPropagation();deleteNb('${nb.id}')" title="삭제">🗑</button>
-</div>
+        <button onclick="event.stopPropagation();openRenameNb('${nb.id}')" title="이름 변경">✏️</button>
+        <button onclick="event.stopPropagation();openDeleteNb('${nb.id}')" title="삭제">🗑</button>
+      </div>
     </div>`;
   }).join('');
 }
@@ -443,7 +462,7 @@ function renderEditor() {
   document.getElementById('save-status').textContent = '저장됨';
 }
 
-// ── 노트북 조작 ──
+// ── 노트북 선택 ──
 function selectNb(id) {
   curNbId = id; curNoteId = null;
   document.getElementById('search-input').value = '';
@@ -452,20 +471,70 @@ function selectNb(id) {
   document.getElementById('editor-panel').classList.remove('open');
 }
 
-function openAddNotebook() {
-  document.getElementById('modal-overlay').classList.add('open');
-  document.getElementById('nb-name-input').value = '';
-  setTimeout(() => document.getElementById('nb-name-input').focus(), 100);
+// ── 노트북 추가 ──
+function openAddNbModal() {
+  document.getElementById('nb-add-input').value = '';
+  openModal('modal-add');
+  setTimeout(() => document.getElementById('nb-add-input').focus(), 100);
 }
-function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
 function confirmAddNb() {
-  const name = document.getElementById('nb-name-input').value.trim();
+  const name = document.getElementById('nb-add-input').value.trim();
   if (!name) return;
   const icons = ['📔','📓','📒','📕','📗','📘','🗒️','📋'];
   const nb = { id: uid(), name, icon: icons[notebooks.length % icons.length] };
   notebooks.push(nb); saveNbs();
-  closeModal(); selectNb(nb.id);
+  closeModal('modal-add');
+  selectNb(nb.id);
   showToast(`"${name}" 노트북 만들어졌어요`);
+}
+
+// ── 노트북 이름 변경 ──
+function openRenameNb(id) {
+  pendingRenameId = id;
+  const nb = notebooks.find(n => n.id === id);
+  document.getElementById('nb-rename-input').value = nb.name;
+  openModal('modal-rename');
+  setTimeout(() => {
+    const input = document.getElementById('nb-rename-input');
+    input.focus(); input.select();
+  }, 100);
+}
+function confirmRenameNb() {
+  const name = document.getElementById('nb-rename-input').value.trim();
+  if (!name || !pendingRenameId) return;
+  const nb = notebooks.find(n => n.id === pendingRenameId);
+  nb.name = name; saveNbs();
+  closeModal('modal-rename');
+  renderNbs(); renderNoteList(); renderEditor();
+  showToast('이름이 바뀌었어요 ✏️');
+  pendingRenameId = null;
+}
+
+// ── 노트북 삭제 ──
+function openDeleteNb(id) {
+  pendingDeleteId = id;
+  const nb = notebooks.find(n => n.id === id);
+  const cnt = notes.filter(n => n.nbId === id).length;
+  const msg = cnt > 0
+    ? `"${nb.name}" 노트북 안에 노트 ${cnt}개가 있어요.\n삭제하면 노트도 전부 사라져요. 정말 삭제할까요?`
+    : `"${nb.name}" 노트북을 삭제할까요?`;
+  document.getElementById('modal-delete-msg').textContent = msg;
+  openModal('modal-delete');
+}
+function confirmDeleteNb() {
+  if (!pendingDeleteId) return;
+  const nb = notebooks.find(n => n.id === pendingDeleteId);
+  notebooks = notebooks.filter(n => n.id !== pendingDeleteId);
+  notes = notes.filter(n => n.nbId !== pendingDeleteId);
+  saveNbs(); saveNts();
+  closeModal('modal-delete');
+  if (curNbId === pendingDeleteId) {
+    curNbId = notebooks.length ? notebooks[0].id : null;
+    curNoteId = null;
+  }
+  pendingDeleteId = null;
+  renderNbs(); renderNoteList(); renderEditor();
+  showToast(`"${nb.name}" 삭제됐어요`);
 }
 
 // ── 노트 조작 ──
@@ -480,19 +549,20 @@ function createNote() {
 }
 
 function selectNote(id) {
-  flushSave();
-  curNoteId = id;
+  flushSave(); curNoteId = id;
   renderNoteList(); renderEditor();
   openEditorMobile();
 }
 
 function deleteNote(id) {
   notes = notes.filter(n => n.id !== id); saveNts();
-  if (curNoteId === id) { curNoteId = null; renderEditor(); document.getElementById('editor-panel').classList.remove('open'); }
+  if (curNoteId === id) {
+    curNoteId = null; renderEditor();
+    document.getElementById('editor-panel').classList.remove('open');
+  }
   renderNoteList(); renderNbs();
   showToast('노트 삭제됐어요');
 }
-
 function deleteCurrentNote() { if (curNoteId) deleteNote(curNoteId); }
 
 // ── 에디터 ──
@@ -501,7 +571,6 @@ function onEdit() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(flushSave, 800);
 }
-
 function flushSave() {
   if (!curNoteId) return;
   const title = document.getElementById('editor-title').value;
@@ -526,6 +595,10 @@ function handleSearch(q) {
   ).sort((a,b) => b.updAt - a.updAt);
   renderNoteList(results, true);
 }
+
+// ── 모달 ──
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 
 // ── 모바일 ──
 function openSidebar() {
@@ -563,40 +636,7 @@ function showToast(msg) {
 }
 
 window.addEventListener('beforeunload', flushSave);
-
-// 초기 실행
 selectNb(notebooks[0].id);
-  function renameNb(id) {
-  const nb = notebooks.find(n => n.id === id);
-  const newName = prompt('새 이름을 입력하세요', nb.name);
-  if (!newName || !newName.trim()) return;
-  nb.name = newName.trim();
-  saveNbs();
-  renderNbs();
-  if (curNbId === id) {
-    document.getElementById('current-nb-name').textContent = nb.name;
-    document.getElementById('mobile-nb-title').textContent = nb.name;
-  }
-  showToast('이름이 바뀌었어요');
-}
-
-function deleteNb(id) {
-  const nb = notebooks.find(n => n.id === id);
-  const cnt = notes.filter(n => n.nbId === id).length;
-  const msg = cnt > 0
-    ? `"${nb.name}" 안에 노트 ${cnt}개가 있어요.\n정말 삭제할까요?`
-    : `"${nb.name}"을 삭제할까요?`;
-  if (!confirm(msg)) return;
-  notebooks = notebooks.filter(n => n.id !== id);
-  notes = notes.filter(n => n.nbId !== id);
-  saveNbs(); saveNts();
-  if (curNbId === id) {
-    curNbId = notebooks.length ? notebooks[0].id : null;
-    curNoteId = null;
-  }
-  renderNbs(); renderNoteList(); renderEditor();
-  showToast('노트북이 삭제됐어요');
-}
 </script>
 </body>
 </html>
