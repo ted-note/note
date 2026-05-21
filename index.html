@@ -274,6 +274,14 @@ body {
   display: none; position: fixed; inset: 0; z-index: 49; background: rgba(0,0,0,0.3);
 }
 .sidebar-overlay.open { display: block; }
+  .nb-actions { display: none; gap: 2px; }
+.notebook-item:hover .nb-actions { display: flex; }
+.nb-actions button {
+  background: none; border: none; cursor: pointer;
+  font-size: 12px; padding: 2px 4px; border-radius: 4px;
+  opacity: 0.6; transition: opacity 0.15s;
+}
+.nb-actions button:hover { opacity: 1; background: rgba(255,255,255,0.1); }
 </style>
 </head>
 <body>
@@ -380,6 +388,10 @@ function renderNbs() {
         <span class="notebook-name">${esc(nb.name)}</span>
       </div>
       <span class="notebook-count">${cnt}</span>
+      <div class="nb-actions">
+  <button onclick="event.stopPropagation();renameNb('${nb.id}')" title="이름 변경">✏️</button>
+  <button onclick="event.stopPropagation();deleteNb('${nb.id}')" title="삭제">🗑</button>
+</div>
     </div>`;
   }).join('');
 }
@@ -554,6 +566,37 @@ window.addEventListener('beforeunload', flushSave);
 
 // 초기 실행
 selectNb(notebooks[0].id);
+  function renameNb(id) {
+  const nb = notebooks.find(n => n.id === id);
+  const newName = prompt('새 이름을 입력하세요', nb.name);
+  if (!newName || !newName.trim()) return;
+  nb.name = newName.trim();
+  saveNbs();
+  renderNbs();
+  if (curNbId === id) {
+    document.getElementById('current-nb-name').textContent = nb.name;
+    document.getElementById('mobile-nb-title').textContent = nb.name;
+  }
+  showToast('이름이 바뀌었어요');
+}
+
+function deleteNb(id) {
+  const nb = notebooks.find(n => n.id === id);
+  const cnt = notes.filter(n => n.nbId === id).length;
+  const msg = cnt > 0
+    ? `"${nb.name}" 안에 노트 ${cnt}개가 있어요.\n정말 삭제할까요?`
+    : `"${nb.name}"을 삭제할까요?`;
+  if (!confirm(msg)) return;
+  notebooks = notebooks.filter(n => n.id !== id);
+  notes = notes.filter(n => n.nbId !== id);
+  saveNbs(); saveNts();
+  if (curNbId === id) {
+    curNbId = notebooks.length ? notebooks[0].id : null;
+    curNoteId = null;
+  }
+  renderNbs(); renderNoteList(); renderEditor();
+  showToast('노트북이 삭제됐어요');
+}
 </script>
 </body>
 </html>
