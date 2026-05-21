@@ -1,0 +1,13 @@
+{
+  "name": "내 노트",
+  "short_name": "내 노트",
+  "description": "노트북 구조의 개인 메모 앱",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f7f6f3",
+  "theme_color": "#1e1e2e",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
