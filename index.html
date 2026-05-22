@@ -314,6 +314,25 @@ body {
 }
 .sidebar-overlay.open { display: block; }
 
+/* ── 휴지통 아이템 ── */
+.trash-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px; border-bottom: 1px solid var(--border);
+  gap: 8px;
+}
+.trash-item-title { font-size: 14px; font-weight: 500; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trash-item-date { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+.trash-item-actions { display: flex; gap: 4px; flex-shrink: 0; }
+.trash-restore-btn {
+  background: #eef2ff; color: #4361ee; border: none; border-radius: 6px;
+  padding: 4px 8px; font-size: 12px; cursor: pointer;
+}
+.trash-del-btn {
+  background: #fff0f0; color: var(--danger); border: none; border-radius: 6px;
+  padding: 4px 8px; font-size: 12px; cursor: pointer;
+}
+.trash-empty-msg { text-align: center; color: var(--muted); font-size: 13px; padding: 24px 0; }
+
 /* ── 로그인 화면 ── */
 .login-screen {
   position: fixed; inset: 0; z-index: 999;
@@ -371,6 +390,14 @@ body {
     <div class="sidebar-section-label">노트북</div>
     <div class="notebook-list" id="notebook-list"></div>
     <button class="add-notebook-btn" onclick="openModal('modal-add')">＋ 새 노트북</button>
+    <div class="sidebar-section-label">기타</div>
+    <div class="notebook-item" id="trash-menu-item" onclick="selectTrash()">
+      <div class="notebook-item-left">
+        <span class="notebook-icon">🗑</span>
+        <span class="notebook-name">휴지통</span>
+      </div>
+      <span class="notebook-count" id="trash-count">0</span>
+    </div>
   </div>
 
   <!-- 노트 목록 -->
@@ -419,21 +446,35 @@ body {
         <div class="fmt-sep"></div>
         <button class="fmt-btn" onclick="fmt('insertHorizontalRule')" title="구분선">—</button>
         <div class="fmt-sep"></div>
-        <button class="fmt-btn" onclick="changeFontSize(-1)" title="글자 작게">A−</button>
-        <span id="font-size-label" style="font-size:12px;color:var(--muted);padding:0 4px;line-height:1;">15</span>
-        <button class="fmt-btn" onclick="changeFontSize(1)" title="글자 크게">A+</button>
+        <button class="fmt-btn" onclick="changeZoom(-25)" title="축소">🔍−</button>
+        <span id="zoom-label" style="font-size:12px;color:var(--muted);padding:0 4px;line-height:1;min-width:36px;text-align:center;">100%</span>
+        <button class="fmt-btn" onclick="changeZoom(25)" title="확대">🔍+</button>
       </div>
 
+      <div style="flex:1;overflow-y:auto;" id="editor-scroll">
       <div class="editor-body" id="editor-body"
            contenteditable="true"
            data-placeholder="내용을 자유롭게 입력하세요..."
            oninput="onEdit()"
            onpaste="handlePaste(event)"></div>
+      </div>
     </div>
 
     <div class="no-note-placeholder" id="no-note-msg">
       <div class="icon">📝</div>
       <p>노트를 선택하거나 새로 만들어보세요</p>
+    </div>
+  </div>
+</div>
+
+<!-- 휴지통 모달 -->
+<div class="modal-overlay" id="modal-trash">
+  <div class="modal" style="max-width:400px;">
+    <h3>🗑 휴지통</h3>
+    <div id="trash-list" style="max-height:300px;overflow-y:auto;margin-bottom:14px;"></div>
+    <div class="modal-btns">
+      <button class="modal-btn cancel" onclick="closeModal('modal-trash')">닫기</button>
+      <button class="modal-btn danger" onclick="emptyTrash()">휴지통 비우기</button>
     </div>
   </div>
 </div>
@@ -523,6 +564,7 @@ const provider = new GoogleAuthProvider();
 // ── 데이터 ──
 let notebooks = [];
 let notes = [];
+let trash = [];
 let curNbId = null, curNoteId = null, saveTimer = null;
 let pendingRenameId = null, pendingDeleteId = null;
 let savedRange = null;
@@ -563,8 +605,10 @@ async function saveNb(nb) {
   await setDoc(doc(db, 'notebooks', nb.id), nb);
 }
 async function saveNt(note) {
-  // body가 너무 크면 Firestore 4MB 제한 때문에 이미지 제외 저장
   await setDoc(doc(db, 'notes', note.id), note);
+}
+async function saveTrashItem(note) {
+  await setDoc(doc(db, 'trash', note.id), note);
 }
 async function deleteNbFromDb(id) {
   await deleteDoc(doc(db, 'notebooks', id));
@@ -572,10 +616,17 @@ async function deleteNbFromDb(id) {
 async function deleteNtFromDb(id) {
   await deleteDoc(doc(db, 'notes', id));
 }
-// 하위 호환용 (기존 코드에서 호출)
+async function deleteTrashItemFromDb(id) {
+  await deleteDoc(doc(db, 'trash', id));
+}
 function saveNbs() { notebooks.forEach(nb => saveNb(nb)); }
 function saveNts() { notes.forEach(n => saveNt(n)); }
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+
+function updateTrashCount() {
+  const el = document.getElementById('trash-count');
+  if (el) el.textContent = trash.length;
+}
 
 
 
@@ -643,7 +694,7 @@ function renderEditor() {
   document.getElementById('editor-body').innerHTML = note.body || '';
   document.getElementById('editor-meta').textContent = `${fullDate(note.updAt)} 수정`;
   document.getElementById('save-status').textContent = '저장됨';
-  applyFontSize();
+  applyZoom();
 }
 
 // ── 노트북 ──
@@ -730,13 +781,80 @@ function selectNote(id) {
 }
 
 function deleteNote(id) {
+  const note = notes.find(n => n.id === id);
+  if (!note) return;
+  note.deletedAt = Date.now();
+  trash.unshift(note);
   notes = notes.filter(n => n.id !== id);
   deleteNtFromDb(id);
+  saveTrashItem(note);
+  updateTrashCount();
   if (curNoteId === id) {
     curNoteId = null; renderEditor();
     document.getElementById('editor-panel').classList.remove('open');
   }
-  renderNoteList(); renderNbs(); showToast('노트 삭제됐어요');
+  renderNoteList(); renderNbs(); showToast('휴지통으로 이동됐어요 🗑');
+}
+
+// ── 휴지통 ──
+function selectTrash() {
+  // 사이드바 active 표시
+  document.querySelectorAll('.notebook-item').forEach(el => el.classList.remove('active'));
+  document.getElementById('trash-menu-item').classList.add('active');
+  openModal('modal-trash');
+  renderTrashList();
+  closeSidebar();
+}
+
+function renderTrashList() {
+  const container = document.getElementById('trash-list');
+  if (trash.length === 0) {
+    container.innerHTML = '<div class="trash-empty-msg">휴지통이 비어있어요 😊</div>';
+    return;
+  }
+  container.innerHTML = trash.map(n =>
+    `<div class="trash-item">
+      <div>
+        <div class="trash-item-title">${esc(n.title || '제목 없음')}</div>
+        <div class="trash-item-date">${relTime(n.deletedAt)} 삭제</div>
+      </div>
+      <div class="trash-item-actions">
+        <button class="trash-restore-btn" onclick="restoreNote('${n.id}')">복원</button>
+        <button class="trash-del-btn" onclick="permanentDelete('${n.id}')">삭제</button>
+      </div>
+    </div>`
+  ).join('');
+}
+
+function restoreNote(id) {
+  const note = trash.find(n => n.id === id);
+  if (!note) return;
+  delete note.deletedAt;
+  trash = trash.filter(n => n.id !== id);
+  notes.unshift(note);
+  saveNt(note);
+  deleteTrashItemFromDb(id);
+  updateTrashCount();
+  renderTrashList();
+  renderNoteList(); renderNbs();
+  showToast('노트가 복원됐어요 ↩️');
+}
+
+function permanentDelete(id) {
+  trash = trash.filter(n => n.id !== id);
+  deleteTrashItemFromDb(id);
+  updateTrashCount();
+  renderTrashList();
+  showToast('완전히 삭제됐어요');
+}
+
+function emptyTrash() {
+  if (trash.length === 0) { showToast('휴지통이 이미 비어있어요'); return; }
+  trash.forEach(n => deleteTrashItemFromDb(n.id));
+  trash = [];
+  updateTrashCount();
+  renderTrashList();
+  showToast('휴지통을 비웠어요 🗑');
 }
 function deleteCurrentNote() { if (curNoteId) deleteNote(curNoteId); }
 
@@ -761,16 +879,19 @@ function flushSave() {
   renderNoteList(); renderNbs();
 }
 
-// ── 글자 크기 조정 ──
-let curFontSize = parseInt(localStorage.getItem('editor_fontsize') || '15');
-function applyFontSize() {
-  document.getElementById('editor-body').style.fontSize = curFontSize + 'px';
-  document.getElementById('font-size-label').textContent = curFontSize;
-  localStorage.setItem('editor_fontsize', curFontSize);
+// ── 배율 조정 ──
+let curZoom = parseInt(localStorage.getItem('editor_zoom') || '100');
+function applyZoom() {
+  const body = document.getElementById('editor-body');
+  body.style.transform = `scale(${curZoom / 100})`;
+  body.style.transformOrigin = 'top left';
+  body.style.width = `${10000 / curZoom}%`;
+  document.getElementById('zoom-label').textContent = curZoom + '%';
+  localStorage.setItem('editor_zoom', curZoom);
 }
-function changeFontSize(delta) {
-  curFontSize = Math.min(28, Math.max(11, curFontSize + delta));
-  applyFontSize();
+function changeZoom(delta) {
+  curZoom = Math.min(200, Math.max(25, curZoom + delta));
+  applyZoom();
 }
 function fmt(cmd) {
   document.getElementById('editor-body').focus();
@@ -942,17 +1063,21 @@ window.addEventListener('beforeunload', flushSave);
 async function initApp() {
   showToast('데이터 불러오는 중...');
   try {
-    const [nbSnap, ntSnap] = await Promise.all([
+    const [nbSnap, ntSnap, trashSnap] = await Promise.all([
       getDocs(collection(db, 'notebooks')),
-      getDocs(collection(db, 'notes'))
+      getDocs(collection(db, 'notes')),
+      getDocs(collection(db, 'trash'))
     ]);
     notebooks = nbSnap.docs.map(d => d.data());
     notes = ntSnap.docs.map(d => d.data());
+    trash = trashSnap.docs.map(d => d.data());
     notes.sort((a, b) => (b.updAt || 0) - (a.updAt || 0));
+    trash.sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0));
   } catch(e) {
     console.error(e);
     showToast('데이터 로드 실패. 새로고침 해주세요.');
   }
+  updateTrashCount();
   if (notebooks.length > 0) selectNb(notebooks[0].id);
   else { renderNbs(); renderNoteList(); renderEditor(); }
 }
@@ -1018,7 +1143,12 @@ window.renderIconPickerRename = renderIconPickerRename;
 window.selectIcon = selectIcon;
 window.loginWithGoogle = loginWithGoogle;
 window.logoutUser = logoutUser;
-window.changeFontSize = changeFontSize;
+window.changeFontSize = changeZoom;
+window.changeZoom = changeZoom;
+window.selectTrash = selectTrash;
+window.restoreNote = restoreNote;
+window.permanentDelete = permanentDelete;
+window.emptyTrash = emptyTrash;
 </script>
 </body>
 </html>
