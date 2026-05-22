@@ -455,15 +455,31 @@ body {
 
 <div class="toast" id="toast"></div>
 
-<script>
+<script type="module">
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
 
+// ── Firebase 초기화 ──
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, doc, getDocs, setDoc, deleteDoc, onSnapshot, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAN0ycUk3qSOYuJhObjx0in8AydNRP9RHU",
+  authDomain: "ted-note.firebaseapp.com",
+  projectId: "ted-note",
+  storageBucket: "ted-note.firebasestorage.app",
+  messagingSenderId: "423297333803",
+  appId: "1:423297333803:web:a7dfecbe51d28ea0b1086e"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
 // ── 데이터 ──
-let notebooks = JSON.parse(localStorage.getItem('nb_books') || '[]');
-let notes = JSON.parse(localStorage.getItem('nb_notes') || '[]');
+let notebooks = [];
+let notes = [];
 let curNbId = null, curNoteId = null, saveTimer = null;
 let pendingRenameId = null, pendingDeleteId = null;
 let savedRange = null;
+let dbReady = false;
 
 // ── 아이콘 목록 ──
 const ICONS = [
@@ -485,8 +501,23 @@ function renderIconPicker(containerId, selectedIcon, onSelect) {
   ).join('');
 }
 
-function saveNbs() { localStorage.setItem('nb_books', JSON.stringify(notebooks)); }
-function saveNts() { localStorage.setItem('nb_notes', JSON.stringify(notes)); }
+// ── Firebase 저장 ──
+async function saveNb(nb) {
+  await setDoc(doc(db, 'notebooks', nb.id), nb);
+}
+async function saveNt(note) {
+  // body가 너무 크면 Firestore 4MB 제한 때문에 이미지 제외 저장
+  await setDoc(doc(db, 'notes', note.id), note);
+}
+async function deleteNbFromDb(id) {
+  await deleteDoc(doc(db, 'notebooks', id));
+}
+async function deleteNtFromDb(id) {
+  await deleteDoc(doc(db, 'notes', id));
+}
+// 하위 호환용 (기존 코드에서 호출)
+function saveNbs() { notebooks.forEach(nb => saveNb(nb)); }
+function saveNts() { notes.forEach(n => saveNt(n)); }
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
 
 
@@ -570,7 +601,8 @@ function confirmAddNb() {
   const name = document.getElementById('nb-add-input').value.trim();
   if (!name) return;
   const nb = { id: uid(), name, icon: selectedIconAdd };
-  notebooks.push(nb); saveNbs();
+  notebooks.push(nb);
+  saveNb(nb);
   closeModal('modal-add'); selectNb(nb.id);
   showToast(`"${name}" 노트북 만들어졌어요`);
 }
@@ -590,7 +622,8 @@ function confirmRenameNb() {
   const nb = notebooks.find(n => n.id === pendingRenameId);
   nb.name = name;
   nb.icon = selectedIconRename;
-  saveNbs(); closeModal('modal-rename');
+  saveNb(nb);
+  closeModal('modal-rename');
   renderNbs(); renderNoteList(); renderEditor();
   showToast('이름이 바뀌었어요 ✏️');
   pendingRenameId = null;
@@ -609,9 +642,12 @@ function openDeleteNb(id) {
 function confirmDeleteNb() {
   if (!pendingDeleteId) return;
   const nb = notebooks.find(n => n.id === pendingDeleteId);
+  const toDeleteNotes = notes.filter(n => n.nbId === pendingDeleteId);
   notebooks = notebooks.filter(n => n.id !== pendingDeleteId);
   notes = notes.filter(n => n.nbId !== pendingDeleteId);
-  saveNbs(); saveNts(); closeModal('modal-delete-nb');
+  deleteNbFromDb(pendingDeleteId);
+  toDeleteNotes.forEach(n => deleteNtFromDb(n.id));
+  closeModal('modal-delete-nb');
   if (curNbId === pendingDeleteId) { curNbId = notebooks.length ? notebooks[0].id : null; curNoteId = null; }
   pendingDeleteId = null;
   renderNbs(); renderNoteList(); renderEditor();
@@ -622,7 +658,8 @@ function confirmDeleteNb() {
 function createNote() {
   if (!curNbId) { showToast('노트북을 먼저 선택하세요'); return; }
   const note = { id: uid(), nbId: curNbId, title: '', body: '', crtAt: Date.now(), updAt: Date.now() };
-  notes.unshift(note); saveNts();
+  notes.unshift(note);
+  saveNt(note);
   curNoteId = note.id;
   renderNoteList(); renderEditor(); renderNbs();
   openEditorMobile();
@@ -635,7 +672,8 @@ function selectNote(id) {
 }
 
 function deleteNote(id) {
-  notes = notes.filter(n => n.id !== id); saveNts();
+  notes = notes.filter(n => n.id !== id);
+  deleteNtFromDb(id);
   if (curNoteId === id) {
     curNoteId = null; renderEditor();
     document.getElementById('editor-panel').classList.remove('open');
@@ -658,7 +696,7 @@ function flushSave() {
   const idx = notes.findIndex(n => n.id === curNoteId);
   if (idx === -1) return;
   notes[idx].title = title; notes[idx].body = body; notes[idx].updAt = Date.now();
-  saveNts();
+  saveNt(notes[idx]);
   document.getElementById('save-status').textContent = '저장됨';
   document.getElementById('editor-meta').textContent = `${fullDate(notes[idx].updAt)} 수정`;
   document.getElementById('mobile-editor-title').textContent = title || '제목 없음';
@@ -837,8 +875,27 @@ function showToast(msg) {
 }
 
 window.addEventListener('beforeunload', flushSave);
-if (notebooks.length > 0) selectNb(notebooks[0].id);
-else { renderNbs(); renderNoteList(); renderEditor(); }
+
+// ── Firebase 초기 데이터 로드 ──
+async function initApp() {
+  showToast('데이터 불러오는 중...');
+  try {
+    const [nbSnap, ntSnap] = await Promise.all([
+      getDocs(collection(db, 'notebooks')),
+      getDocs(collection(db, 'notes'))
+    ]);
+    notebooks = nbSnap.docs.map(d => d.data());
+    notes = ntSnap.docs.map(d => d.data());
+    // updAt 기준 정렬
+    notes.sort((a, b) => (b.updAt || 0) - (a.updAt || 0));
+  } catch(e) {
+    console.error(e);
+    showToast('데이터 로드 실패. 새로고침 해주세요.');
+  }
+  if (notebooks.length > 0) selectNb(notebooks[0].id);
+  else { renderNbs(); renderNoteList(); renderEditor(); }
+}
+initApp();
 </script>
 </body>
 </html>
