@@ -456,11 +456,12 @@ body {
 <div class="toast" id="toast"></div>
 
 <script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getFirestore, collection, doc, getDocs, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
 
 // ── Firebase 초기화 ──
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, doc, getDocs, setDoc, deleteDoc, onSnapshot, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAN0ycUk3qSOYuJhObjx0in8AydNRP9RHU",
@@ -896,6 +897,31 @@ async function initApp() {
   else { renderNbs(); renderNoteList(); renderEditor(); }
 }
 initApp();
+
+// ── 전역 함수 노출 (onclick에서 호출 가능하도록) ──
+window.selectNb = selectNb;
+window.createNote = createNote;
+window.selectNote = selectNote;
+window.deleteNote = deleteNote;
+window.deleteCurrentNote = deleteCurrentNote;
+window.openModal = openModal;
+window.closeModal = closeModal;
+window.confirmAddNb = confirmAddNb;
+window.openRenameNb = openRenameNb;
+window.confirmRenameNb = confirmRenameNb;
+window.openDeleteNb = openDeleteNb;
+window.confirmDeleteNb = confirmDeleteNb;
+window.openLinkModal = openLinkModal;
+window.confirmAddLink = confirmAddLink;
+window.handleSearch = handleSearch;
+window.handleImgUpload = handleImgUpload;
+window.handlePaste = handlePaste;
+window.fmt = fmt;
+window.fmtBlock = fmtBlock;
+window.onEdit = onEdit;
+window.openSidebar = openSidebar;
+window.closeSidebar = closeSidebar;
+window.closeEditor = closeEditor;
 </script>
 </body>
 </html>
