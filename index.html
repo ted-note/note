@@ -1121,10 +1121,13 @@ function startRealtimeSync() {
 async function loginWithGoogle() {
   document.getElementById('login-error').textContent = '';
   try {
+    const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    if (isMobile) {
+    if (isMobile && !isStandalone) {
+      // 모바일 브라우저 → 리다이렉트
       await signInWithRedirect(auth, provider);
     } else {
+      // PC 또는 홈화면 앱(PWA) → 팝업
       const result = await signInWithPopup(auth, provider);
       const email = result.user.email;
       if (email !== ALLOWED_EMAIL) {
@@ -1133,6 +1136,7 @@ async function loginWithGoogle() {
       }
     }
   } catch(e) {
+    console.error(e);
     document.getElementById('login-error').textContent = '로그인 실패. 다시 시도해주세요.';
   }
 }
