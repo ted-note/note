@@ -540,7 +540,7 @@ body {
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, doc, getDocs, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, doc, getDocs, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
@@ -1059,62 +1059,27 @@ function showToast(msg) {
 
 window.addEventListener('beforeunload', flushSave);
 
-// ── Firebase 실시간 동기화 ──
-let unsubscribers = [];
-
-function startRealtimeSync() {
-  // 기존 리스너 해제
-  unsubscribers.forEach(fn => fn());
-  unsubscribers = [];
-
-  let nbLoaded = false, ntLoaded = false, trashLoaded = false;
-
-  function tryInit() {
-    if (nbLoaded && ntLoaded && trashLoaded) {
-      updateTrashCount();
-      if (curNbId) {
-        renderNbs(); renderNoteList(); renderEditor();
-      } else if (notebooks.length > 0) {
-        selectNb(notebooks[0].id);
-      } else {
-        renderNbs(); renderNoteList(); renderEditor();
-      }
-    }
-  }
-
-  // 노트북 실시간
-  const unsubNb = onSnapshot(collection(db, 'notebooks'), snap => {
-    notebooks = snap.docs.map(d => d.data());
-    nbLoaded = true;
-    if (ntLoaded && trashLoaded) { renderNbs(); renderNoteList(); renderEditor(); updateTrashCount(); }
-    else tryInit();
-  });
-
-  // 노트 실시간
-  const unsubNt = onSnapshot(collection(db, 'notes'), snap => {
-    const editing = curNoteId;
-    notes = snap.docs.map(d => d.data());
+// ── Firebase 초기 데이터 로드 ──
+async function initApp() {
+  showToast('데이터 불러오는 중...');
+  try {
+    const [nbSnap, ntSnap, trashSnap] = await Promise.all([
+      getDocs(collection(db, 'notebooks')),
+      getDocs(collection(db, 'notes')),
+      getDocs(collection(db, 'trash'))
+    ]);
+    notebooks = nbSnap.docs.map(d => d.data());
+    notes = ntSnap.docs.map(d => d.data());
+    trash = trashSnap.docs.map(d => d.data());
     notes.sort((a, b) => (b.updAt || 0) - (a.updAt || 0));
-    ntLoaded = true;
-    if (nbLoaded && trashLoaded) {
-      renderNoteList();
-      renderNbs();
-      // 현재 편집 중인 노트가 외부에서 바뀐 경우만 에디터 갱신
-      if (editing !== curNoteId) renderEditor();
-    } else tryInit();
-  });
-
-  // 휴지통 실시간
-  const unsubTrash = onSnapshot(collection(db, 'trash'), snap => {
-    trash = snap.docs.map(d => d.data());
     trash.sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0));
-    trashLoaded = true;
-    updateTrashCount();
-    if (nbLoaded && ntLoaded) { renderNbs(); renderNoteList(); }
-    else tryInit();
-  });
-
-  unsubscribers = [unsubNb, unsubNt, unsubTrash];
+  } catch(e) {
+    console.error(e);
+    showToast('데이터 로드 실패. 새로고침 해주세요.');
+  }
+  updateTrashCount();
+  if (notebooks.length > 0) selectNb(notebooks[0].id);
+  else { renderNbs(); renderNoteList(); renderEditor(); }
 }
 
 // ── 인증 ──
@@ -1161,11 +1126,9 @@ onAuthStateChanged(auth, async (user) => {
 
   if (user && user.email === ALLOWED_EMAIL) {
     loginScreen.style.display = 'none';
-    startRealtimeSync();
+    initApp();
   } else {
     loginScreen.style.display = 'flex';
-    unsubscribers.forEach(fn => fn());
-    unsubscribers = [];
     notebooks = []; notes = []; trash = [];
     renderNbs(); renderNoteList(); renderEditor();
   }
