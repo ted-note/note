@@ -494,12 +494,22 @@ const ICONS = [
 let selectedIconAdd = ICONS[0];
 let selectedIconRename = ICONS[0];
 
-function renderIconPicker(containerId, selectedIcon, onSelect) {
+function renderIconPicker(containerId, selectedIcon, type) {
   const container = document.getElementById(containerId);
   container.innerHTML = ICONS.map(icon =>
     `<div class="icon-option ${icon === selectedIcon ? 'selected' : ''}"
-      onclick="(${onSelect.toString()})('${icon}')">${icon}</div>`
+      onclick="selectIcon('${type}','${icon}')">${icon}</div>`
   ).join('');
+}
+
+function selectIcon(type, icon) {
+  if (type === 'add') {
+    selectedIconAdd = icon;
+    renderIconPickerAdd();
+  } else {
+    selectedIconRename = icon;
+    renderIconPickerRename();
+  }
 }
 
 // ── Firebase 저장 ──
@@ -817,16 +827,10 @@ function handleSearch(q) {
 
 // ── 모달 ──
 function renderIconPickerAdd() {
-  renderIconPicker('icon-picker-add', selectedIconAdd, function(icon) {
-    selectedIconAdd = icon;
-    renderIconPickerAdd();
-  });
+  renderIconPicker('icon-picker-add', selectedIconAdd, 'add');
 }
 function renderIconPickerRename() {
-  renderIconPicker('icon-picker-rename', selectedIconRename, function(icon) {
-    selectedIconRename = icon;
-    renderIconPickerRename();
-  });
+  renderIconPicker('icon-picker-rename', selectedIconRename, 'rename');
 }
 
 function openModal(id) {
@@ -922,6 +926,9 @@ window.onEdit = onEdit;
 window.openSidebar = openSidebar;
 window.closeSidebar = closeSidebar;
 window.closeEditor = closeEditor;
+window.renderIconPickerAdd = renderIconPickerAdd;
+window.renderIconPickerRename = renderIconPickerRename;
+window.selectIcon = selectIcon;
 </script>
 </body>
 </html>
