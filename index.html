@@ -313,10 +313,48 @@ body {
   display: none; position: fixed; inset: 0; z-index: 49; background: rgba(0,0,0,0.3);
 }
 .sidebar-overlay.open { display: block; }
+
+/* ── 로그인 화면 ── */
+.login-screen {
+  position: fixed; inset: 0; z-index: 999;
+  background: var(--sidebar-bg);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 20px;
+}
+.login-screen .login-title {
+  font-family: 'Noto Serif KR', serif; font-size: 28px;
+  color: var(--accent); letter-spacing: 0.05em;
+}
+.login-screen .login-sub {
+  font-size: 14px; color: var(--sidebar-muted); margin-top: -10px;
+}
+.login-btn {
+  display: flex; align-items: center; gap: 12px;
+  background: #fff; color: #333; border: none; border-radius: 10px;
+  padding: 14px 28px; font-size: 16px; font-family: 'Noto Sans KR', sans-serif;
+  cursor: pointer; font-weight: 500; margin-top: 10px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3); transition: transform 0.1s, opacity 0.2s;
+}
+.login-btn:hover { opacity: 0.92; transform: scale(1.02); }
+.login-btn img { width: 22px; height: 22px; }
+.login-error {
+  font-size: 13px; color: var(--danger); margin-top: -8px;
+}
 </style>
 </head>
 <body>
 <input type="file" id="img-upload" accept="image/*" multiple onchange="handleImgUpload(this)">
+
+<!-- 로그인 화면 -->
+<div class="login-screen" id="login-screen">
+  <div class="login-title">📒 내 노트</div>
+  <div class="login-sub">개인 전용 노트앱</div>
+  <button class="login-btn" onclick="loginWithGoogle()">
+    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+    Google로 로그인
+  </button>
+  <div class="login-error" id="login-error"></div>
+</div>
 
 <div class="app">
   <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
@@ -458,10 +496,12 @@ body {
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getFirestore, collection, doc, getDocs, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
 
 // ── Firebase 초기화 ──
+const ALLOWED_EMAIL = 'hoy333@gmail.com';
 
 const firebaseConfig = {
   apiKey: "AIzaSyAN0ycUk3qSOYuJhObjx0in8AydNRP9RHU",
@@ -473,6 +513,8 @@ const firebaseConfig = {
 };
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
 
 // ── 데이터 ──
 let notebooks = [];
@@ -891,7 +933,6 @@ async function initApp() {
     ]);
     notebooks = nbSnap.docs.map(d => d.data());
     notes = ntSnap.docs.map(d => d.data());
-    // updAt 기준 정렬
     notes.sort((a, b) => (b.updAt || 0) - (a.updAt || 0));
   } catch(e) {
     console.error(e);
@@ -900,7 +941,38 @@ async function initApp() {
   if (notebooks.length > 0) selectNb(notebooks[0].id);
   else { renderNbs(); renderNoteList(); renderEditor(); }
 }
-initApp();
+
+// ── 인증 ──
+async function loginWithGoogle() {
+  document.getElementById('login-error').textContent = '';
+  try {
+    const result = await signInWithPopup(auth, provider);
+    const email = result.user.email;
+    if (email !== ALLOWED_EMAIL) {
+      await signOut(auth);
+      document.getElementById('login-error').textContent = '접근 권한이 없습니다.';
+    }
+  } catch(e) {
+    document.getElementById('login-error').textContent = '로그인 실패. 다시 시도해주세요.';
+  }
+}
+
+function logoutUser() {
+  signOut(auth);
+  showToast('로그아웃 됐어요');
+}
+
+onAuthStateChanged(auth, (user) => {
+  const loginScreen = document.getElementById('login-screen');
+  if (user && user.email === ALLOWED_EMAIL) {
+    loginScreen.style.display = 'none';
+    initApp();
+  } else {
+    loginScreen.style.display = 'flex';
+    notebooks = []; notes = [];
+    renderNbs(); renderNoteList(); renderEditor();
+  }
+});
 
 // ── 전역 함수 노출 (onclick에서 호출 가능하도록) ──
 window.selectNb = selectNb;
@@ -929,6 +1001,8 @@ window.closeEditor = closeEditor;
 window.renderIconPickerAdd = renderIconPickerAdd;
 window.renderIconPickerRename = renderIconPickerRename;
 window.selectIcon = selectIcon;
+window.loginWithGoogle = loginWithGoogle;
+window.logoutUser = logoutUser;
 </script>
 </body>
 </html>
