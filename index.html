@@ -418,6 +418,10 @@ body {
         <button class="fmt-btn" onclick="openLinkModal()" title="링크">🔗 링크</button>
         <div class="fmt-sep"></div>
         <button class="fmt-btn" onclick="fmt('insertHorizontalRule')" title="구분선">—</button>
+        <div class="fmt-sep"></div>
+        <button class="fmt-btn" onclick="changeFontSize(-1)" title="글자 작게">A−</button>
+        <span id="font-size-label" style="font-size:12px;color:var(--muted);padding:0 4px;line-height:1;">15</span>
+        <button class="fmt-btn" onclick="changeFontSize(1)" title="글자 크게">A+</button>
       </div>
 
       <div class="editor-body" id="editor-body"
@@ -639,6 +643,7 @@ function renderEditor() {
   document.getElementById('editor-body').innerHTML = note.body || '';
   document.getElementById('editor-meta').textContent = `${fullDate(note.updAt)} 수정`;
   document.getElementById('save-status').textContent = '저장됨';
+  applyFontSize();
 }
 
 // ── 노트북 ──
@@ -756,7 +761,17 @@ function flushSave() {
   renderNoteList(); renderNbs();
 }
 
-// ── 서식 ──
+// ── 글자 크기 조정 ──
+let curFontSize = parseInt(localStorage.getItem('editor_fontsize') || '15');
+function applyFontSize() {
+  document.getElementById('editor-body').style.fontSize = curFontSize + 'px';
+  document.getElementById('font-size-label').textContent = curFontSize;
+  localStorage.setItem('editor_fontsize', curFontSize);
+}
+function changeFontSize(delta) {
+  curFontSize = Math.min(28, Math.max(11, curFontSize + delta));
+  applyFontSize();
+}
 function fmt(cmd) {
   document.getElementById('editor-body').focus();
   document.execCommand(cmd, false, null);
@@ -1003,6 +1018,7 @@ window.renderIconPickerRename = renderIconPickerRename;
 window.selectIcon = selectIcon;
 window.loginWithGoogle = loginWithGoogle;
 window.logoutUser = logoutUser;
+window.changeFontSize = changeFontSize;
 </script>
 </body>
 </html>
